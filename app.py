@@ -35,7 +35,7 @@ docsearch = PineconeVectorStore.from_existing_index(
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k":3})
 
 llm = HuggingFaceEndpoint(
-    repo_id="Qwen/Qwen3-Coder-480B-A35B-Instruct",  
+    repo_id="deepseek-ai/DeepSeek-V3.2-Exp",  
     task="text-generation",
     huggingfacehub_api_token=os.getenv("HUGGINGFACE_API_KEY"),
     temperature=0.7,
@@ -67,11 +67,23 @@ def index():
 def chat():
     msg = request.form["msg"]
     input = msg
-    print(input)
-    response = rag_chain.invoke({"input": msg})
-    print("Response : ", response["answer"])
-    return str(response["answer"])
+    print("User Input:", input)
 
+    try:
+        docs = retriever.get_relevant_documents(msg)
+        if not docs or len(docs) == 0:
+            return "Sorry, I couldn’t find any relevant information at the moment. The knowledge base might be updating. Please try again later."
+    except Exception as e:
+        print("Retriever Error:", repr(e))
+        return "Apologies, there was an error retrieving data. Please try again later."
+
+    try:
+        response = rag_chain.invoke({"input": msg})
+        print("Response:", response["answer"])
+        return str(response["answer"])
+    except Exception as e:
+        print("LLM Error:", repr(e))
+        return "Sorry, I encountered an issue while generating a response. Please try again shortly."
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port= 8080, debug= True)
